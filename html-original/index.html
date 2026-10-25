@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level-Up Gamer · Tienda online para gamers en Chile</title>
+<meta name="description" content="Level-Up Gamer: consolas, computadores, sillas y accesorios gamer con despacho a todo Chile.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav container">
+    <a href="index.html" class="brand"><span class="brand-mark" aria-hidden="true"></span>Level-Up Gamer</a>
+    <button class="nav-toggle" aria-label="Abrir menú">☰</button>
+    <ul class="nav-links">
+      <li><a href="index.html" aria-current="page">Home</a></li>
+      <li><a href="productos.html">Productos</a></li>
+      <li><a href="nosotros.html">Nosotros</a></li>
+      <li><a href="blogs.html">Blogs</a></li>
+      <li><a href="contacto.html">Contacto</a></li>
+    </ul>
+    <div class="nav-actions">
+      <span data-guest-only>
+        <a href="login.html" class="btn btn-outline btn-sm">Iniciar sesión</a>
+      </span>
+      <span class="user-pill" data-user-pill style="display:none;">
+        Hola, <strong data-user-name></strong> · <a href="#" data-logout>Salir</a>
+      </span>
+      <a href="carrito.html" class="cart-link" aria-label="Ver carrito">
+        🛒 <span class="cart-count" data-cart-count>0</span>
+      </a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="container hero-grid">
+      <div>
+        <p class="hero-eyebrow">TIENDA ONLINE PARA GAMERS EN CHILE</p>
+        <h1>Sube de nivel tu setup, sin salir de casa.</h1>
+        <p class="hero-lead">
+          Consolas, computadores, sillas y accesorios gamer con despacho a todo Chile.
+          Regístrate con tu correo @duoc.cl y obtén 20% de descuento de por vida.
+        </p>
+        <div class="hero-actions">
+          <a href="productos.html" class="btn btn-primary">Ver productos</a>
+          <a href="registro.html" class="btn btn-outline">Crear cuenta</a>
+        </div>
+      </div>
+      <div class="hero-figure">
+        <img src="pictures/accesorios-gaming.png" alt="Setup gamer con luces RGB">
+        <div class="corner-frame" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="section-head">
+      <div>
+        <h2>Productos destacados</h2>
+        <p>Lo más buscado por la comunidad esta semana.</p>
+      </div>
+      <a href="productos.html" class="btn btn-outline btn-sm">Ver todo el catálogo</a>
+    </div>
+    <div class="product-grid" data-home-products></div>
+  </section>
+
+  <section class="container">
+    <div class="value-grid">
+      <div class="value-card">
+        <h3>Despacho a todo Chile</h3>
+        <p>Enviamos tu pedido desde Arica a Punta Arenas, con seguimiento en línea.</p>
+      </div>
+      <div class="value-card">
+        <h3>Programa LevelUp</h3>
+        <p>Suma puntos por cada compra y por referir amigos, y canjéalos por descuentos.</p>
+      </div>
+      <div class="value-card">
+        <h3>Soporte técnico real</h3>
+        <p>Un equipo gamer respondiendo tus dudas antes y después de la compra.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="index.html" class="brand"><span class="brand-mark" aria-hidden="true"></span>Level-Up Gamer</a>
+        <p style="margin-top:14px;">Tienda online dedicada a satisfacer las necesidades de los entusiastas de los videojuegos en Chile.</p>
+      </div>
+      <div>
+        <h4>Tienda</h4>
+        <ul>
+          <li><a href="productos.html">Productos</a></li>
+          <li><a href="carrito.html">Mi carrito</a></li>
+          <li><a href="registro.html">Crear cuenta</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Empresa</h4>
+        <ul>
+          <li><a href="nosotros.html">Nosotros</a></li>
+          <li><a href="blogs.html">Blogs</a></li>
+          <li><a href="contacto.html">Contacto</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Únete a la comunidad</h4>
+        <p>Novedades, lanzamientos y ofertas exclusivas.</p>
+        <form class="footer-newsletter" data-newsletter-form>
+          <input type="email" placeholder="tu@correo.com" required aria-label="Correo electrónico">
+          <button type="submit" class="btn btn-accent btn-sm">Unirme</button>
+        </form>
+        <p style="font-size:0.8rem;margin-top:8px;" data-newsletter-msg></p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year></span> Level-Up Gamer. Todos los derechos reservados.</span>
+      <span>Proyecto académico DSY1104 · DuocUC</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/validate.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/products.js"></script>
+</body>
+</html>
