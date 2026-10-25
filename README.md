@@ -1,90 +1,101 @@
-# Level-Up Gamer — Tienda Online
+# Level-Up Gamer · React Router
 
-Proyecto frontend (HTML + CSS + JavaScript) desarrollado para la **Evaluación Parcial 1** de
-la asignatura **DSY1104 – Desarrollo FullStack II** (DuocUC), en base al caso **Forma B: Tienda Level-Up Gamer**.
+Migración del sitio Level-Up Gamer (HTML + CSS + JS, tienda y panel administrador) a **React 19 + React Router 8 + React Bootstrap**,
+con pruebas unitarias en **Jasmine + Karma** (DSY1104 · Evaluación Parcial 2).
 
-Tienda online de productos para gamers (consolas, computadores, sillas, accesorios, etc.)
-con panel administrador para gestionar productos y usuarios.
-
-## 🚀 Cómo ejecutar el proyecto
-
-No requiere instalación ni build. Basta con abrir `index.html` en el navegador, o servirlo
-con cualquier servidor estático, por ejemplo:
+## Cómo ejecutarlo
 
 ```bash
-# Con Python
-python3 -m http.server 8080
-
-# Con la extensión "Live Server" de VS Code
-# clic derecho sobre index.html > "Open with Live Server"
+npm install
+npm run dev        # desarrollo: http://localhost:5173
+npm run build      # genera dist/
+npm run preview    # revisa dist/ antes de publicar
 ```
 
-Luego visita `http://localhost:8080`.
+Requiere Node 22 o superior.
 
-## 🔑 Usuarios de prueba
+## Pruebas unitarias (Jasmine + Karma)
 
-| Rol            | Correo               | Contraseña   |
-|----------------|-----------------------|-------------|
-| Administrador  | admin@duoc.cl          | admin123    |
-| Vendedor       | vrojas@gmail.com       | vendedor1   |
-
-También puedes crear una cuenta nueva desde **Registro** (rol Cliente por defecto).
-Los correos deben terminar en `@duoc.cl`, `@profesor.duoc.cl` o `@gmail.com`.
-
-## 🗂️ Estructura del proyecto
-
-```
-levelup-gamer/
-├── index.html                  Home de la tienda
-├── productos.html              Catálogo con filtros y buscador
-├── producto-detalle.html        Ficha de producto + añadir al carrito
-├── carrito.html                 Carrito de compras (localStorage)
-├── registro.html                Registro de usuario (validado con JS)
-├── login.html                   Inicio de sesión
-├── nosotros.html                 Quiénes somos
-├── blogs.html / blog-detalle.html   Noticias del mundo gamer
-├── contacto.html                 Formulario de contacto
-├── css/
-│   ├── style.css                Sistema de diseño de la tienda
-│   └── admin.css                 Estilos del panel administrador
-├── js/
-│   ├── data.js                   Productos, categorías, regiones/comunas, usuarios semilla
-│   ├── validate.js               Helpers de validación (RUT, correo, largo, etc.)
-│   ├── main.js                    Navegación, sesión, contador de carrito
-│   ├── auth.js                    Registro / login
-│   ├── products.js                Catálogo, filtros, ficha de producto
-│   ├── cart.js                    Lógica del carrito
-│   ├── blogs.js                   Blogs + formulario de contacto
-│   └── admin.js                   Panel administrador (guardia de acceso + CRUD)
-└── admin/
-    ├── index.html                 Dashboard
-    ├── productos.html             Listado de productos
-    ├── producto-form.html          Crear / editar producto
-    ├── usuarios.html                Listado de usuarios
-    └── usuario-form.html            Crear / editar usuario
+```bash
+npm test             # Karma + Jasmine en Chrome headless (necesita Google Chrome instalado)
+npm run test:jsdom   # igual, pero sin navegador (jsdom): útil si no hay Chrome
+npm run test:watch   # modo observador mientras desarrollas
 ```
 
-## ✅ Funcionalidades implementadas
+- 120 pruebas en `src/pruebas/` (`*.spec.js` / `*.spec.jsx`), cargadas por `src/pruebas/indice.js`.
+- Configuración: `karma.conf.cjs` (webpack + Babel para JSX, `istanbul` para cobertura).
+- Cada ejecución genera el informe de cobertura en `cobertura/index.html` (abrir en el navegador).
+- Mocks usados: `jasmine.createSpy` (callbacks/props), `spyOn` (`window.confirm`, `Storage.prototype.getItem`),
+  `jasmine.clock()` (temporizadores) e inyección de la pasarela de pago como prop del Checkout.
 
-- **HTML semántico**: `<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<footer>` en todas las vistas.
-- **CSS externo y propio**, con paleta y tipografía definidas en el caso (negro + azul eléctrico
-  `#1E90FF` + verde neón `#39FF14`, Orbitron + Roboto).
-- **Navegación interconectada** entre todas las vistas de la tienda y del administrador.
-- **Formularios con validación en JavaScript en tiempo real**, con mensajes de error contextuales:
-  - Registro / Login: RUT chileno (algoritmo módulo 11 real), correo restringido a
-    `@duoc.cl` / `@profesor.duoc.cl` / `@gmail.com`, largo de contraseña, confirmación de contraseña.
-  - Contacto: nombre y comentario obligatorios, correo opcional pero validado si se ingresa.
-  - Admin: alta/edición de productos (precio, stock, stock crítico) y usuarios (RUT, región/comuna dependientes).
-- **Carrito de compras** con `localStorage`, control de cantidades según stock, cupón de descuento.
-- **Roles de usuario**: Administrador (acceso total), Vendedor (solo lectura de productos, sin
-  acceso a Usuarios) y Cliente (solo tienda) — el panel `/admin` valida el rol y redirige si corresponde.
-- **Regiones y comunas dependientes** (arreglo JS) en los formularios de registro y usuario.
+## Rutas
 
-## 📝 Pendiente / próximos pasos
+| Ruta | Página | Qué demuestra |
+|---|---|---|
+| `/` | Inicio | Layout con `Outlet`, grilla responsiva |
+| `/catalogo` | Catálogo | `useSearchParams`: `?buscar=…&categoria=a,b&orden=…` |
+| `/producto/:id` | Detalle | `useParams`, `useNavigate(-1)`, id inexistente |
+| `/blogs`, `/blogs/:id` | Blogs | Ruta con parámetro numérico (`Number(id)`) |
+| `/nosotros`, `/contacto` | Informativas | Formulario validado |
+| `/login`, `/registro` | Sesión | `useLocation().state.from`, formularios controlados |
+| `/categorias`, `/categorias/:valor` | Categorías | Tarjetas por categoría + productos de la categoría |
+| `/ofertas` | Ofertas | Productos con `descuento` > 0 |
+| `/carrito` | Carrito | Estado levantado a `App.jsx` + `localStorage` |
+| `/checkout` | Checkout | Formulario validado (se autocompleta con sesión), crea la orden |
+| `/compra-exitosa/:id`, `/compra-error/:id` | Resultado del pago | Resumen de la orden / reintentar pago |
+| `/admin` | Dashboard | Layout propio con menú lateral + guardia por rol |
+| `/admin/ordenes`, `/admin/ordenes/:id` | Órdenes y boleta | Listado y detalle de compras |
+| `/admin/productos` | Mantenedor de productos | Admin: CRUD · Vendedor: solo lectura |
+| `/admin/productos/criticos` | Productos críticos | Stock ≤ stock crítico |
+| `/admin/categorias` | Categorías | CRUD de categorías |
+| `/admin/reportes`, `/admin/perfil` | Reportes y perfil | Ventas por categoría · edición de perfil |
+| `/admin/usuarios/:run/historial` | Historial de compras | Órdenes del usuario |
+| `/admin/productos/nuevo`, `/admin/productos/:codigo/editar` | Formulario de producto | Solo Administrador (`<SoloAdmin />`) |
+| `/admin/usuarios`, `/admin/usuarios/nuevo`, `/admin/usuarios/:run/editar` | Mantenedor de usuarios | Solo Administrador |
+| `*` | 404 | Comodín dentro del Layout, muestra `useLocation().pathname` |
 
-- Conectar a una base de datos real (ver Documento ERS, próxima entrega).
-- Implementar backend para persistencia real (hoy se usa `localStorage` como simulación).
-- Suite de pruebas automatizadas end-to-end.
+## Estructura
 
----
-Proyecto académico — DSY1104 Desarrollo FullStack II — DuocUC.
+```
+src/
+├── main.jsx            → BrowserRouter
+├── App.jsx             → mapa de rutas + estado del carrito y la sesión
+├── componentes/        → Layout, AdminLayout, SoloAdmin, BarraNavegacion, PiePagina, TarjetaProducto, GrillaProductos, Campo
+├── paginas/            → una por ruta (admin/ = panel administrador)
+├── hooks/              → useFormulario
+├── datos/              → data.js (semillas) · crud.js (CRUD genérico) · baseDatos.js (productos, usuarios, categorías, órdenes)
+├── servicios/          → pagos.js (pasarela simulada)
+├── pruebas/            → *.spec.js(x) de Jasmine + indice.js + ayudas.jsx
+├── utilidades/         → validaciones, formato CLP/ofertas, localStorage
+└── estilos/            → levelup.css + admin.css (tema original) + ajustes.css (convivencia con Bootstrap)
+public/pictures/        → imágenes del sitio (se referencian como "pictures/archivo.png")
+```
+
+## Cuentas de prueba
+
+- Administrador: `admin@duoc.cl` / `admin123` (entra al panel `/admin`)
+- Vendedor: `vrojas@gmail.com` / `vendedor1` (panel en solo lectura, sin Usuarios)
+- Cliente de prueba: regístrate en `/registro` (RUN válido, ej: `10000013K`).
+- Checkout: la casilla «Demo: simular pago rechazado» fuerza la vista de pago con error.
+- Cupón de descuento: `LEVELUP20` · los correos `@duoc.cl` tienen 20 % automático.
+
+## Subir a GitHub
+
+```bash
+git init
+git add .
+git commit -m "Level-Up Gamer con React Router"
+git branch -M main
+git remote add origin https://github.com/TU_USUARIO/TU_REPO.git
+git push -u origin main
+```
+
+Copia la URL del repositorio en la entrega de la actividad.
+
+## Publicar (opcional)
+
+Una SPA necesita que el servidor devuelva `index.html` en cualquier dirección (si no, F5 en `/producto/JM001` da 404):
+
+- **Netlify**: ya incluye `public/_redirects`.
+- **GitHub Pages**: `npm run build` ya copia `dist/index.html` a `dist/404.html`. Si publicas en
+  `usuario.github.io/mi-repo/`, cambia `base: '/mi-repo/'` en `vite.config.js`.
