@@ -4,5 +4,10 @@ dist
 *.log
 
 cobertura/
+
+# Backend (Maven) e IntelliJ
+backend-entrega/target/
+.idea/
+*.iml
 .env
 .env.local

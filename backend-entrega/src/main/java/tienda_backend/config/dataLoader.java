@@ -43,12 +43,12 @@ public class dataLoader {
             if (claveAdmin != null &&
                 !claveAdmin.isBlank() &&
                 !usuarioRepo.existsByCorreo(
-                    "admin@tienda.local")) {
+                    "admin@duoc.cl")) {
 
                 usuario admin = new usuario();
 
                 admin.setNombre("Administrador");
-                admin.setCorreo("admin@tienda.local");
+                admin.setCorreo("admin@duoc.cl");
                 admin.setContrasena(
                     encoder.encode(claveAdmin)
                 );
@@ -61,12 +61,12 @@ public class dataLoader {
             if (claveVendedor != null &&
                 !claveVendedor.isBlank() &&
                 !usuarioRepo.existsByCorreo(
-                    "vendedor@tienda.local")) {
+                    "vendedor@duoc.cl")) {
 
                 usuario vendedor = new usuario();
 
                 vendedor.setNombre("Vendedor");
-                vendedor.setCorreo("vendedor@tienda.local");
+                vendedor.setCorreo("vendedor@duoc.cl");
                 vendedor.setContrasena(
                     encoder.encode(claveVendedor)
                 );

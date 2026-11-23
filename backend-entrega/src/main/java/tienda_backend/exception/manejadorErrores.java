@@ -38,6 +38,13 @@ public class manejadorErrores {
         return respuesta(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    @ExceptionHandler(noAutorizadoException.class)
+    public ResponseEntity<Map<String, Object>> noAutorizado(
+            noAutorizadoException ex) {
+
+        return respuesta(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
     @ExceptionHandler(conflictoException.class)
     public ResponseEntity<Map<String, Object>> conflicto(
             conflictoException ex) {
