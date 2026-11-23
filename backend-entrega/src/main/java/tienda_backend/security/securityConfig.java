@@ -109,9 +109,16 @@ public class securityConfig {
                     "/api/v1/categorias/**"
                 ).hasRole("ADMIN")
 
-                // Gestión de boletas
-                .requestMatchers("/api/v1/boletas/**")
+                // Boletas: listados globales solo para el personal
+                .requestMatchers(HttpMethod.GET,
+                    "/api/v1/boletas",
+                    "/api/v1/boletas/estado/**")
                     .hasAnyRole("ADMIN", "VENDEDOR")
+
+                // Boletas: el cliente puede comprar y ver las suyas
+                // (que la boleta sea suya se valida en boletaController)
+                .requestMatchers("/api/v1/boletas/**")
+                    .hasAnyRole("ADMIN", "VENDEDOR", "CLIENTE")
 
                 // Todo lo demás requiere autenticación
                 .anyRequest().authenticated()
