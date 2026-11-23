@@ -1,12 +1,15 @@
 import { Link } from 'react-router'
-import { leerUsuarios } from '../../utilidades/almacen.js'
-import { ordenesDB } from '../../datos/baseDatos.js'
+import Estado from '../../componentes/Estado.jsx'
+import useRecurso from '../../hooks/useRecurso.js'
+import { listarUsuarios } from '../../servicios/usuarios.js'
+import { listarOrdenes } from '../../servicios/ordenes.js'
 import { formatCLP } from '../../utilidades/formato.js'
 
 // PÁGINA ADMIN: resumen general.
 export default function Dashboard({ productos }) {
-  const usuarios = leerUsuarios()
-  const ordenes = ordenesDB.listar().filter((o) => o.estado === 'Pagada')
+  const { datos, cargando, error, recargar } = useRecurso(() => Promise.all([listarUsuarios(), listarOrdenes()]))
+  const [usuarios, todasLasOrdenes] = datos ?? [[], []]
+  const ordenes = todasLasOrdenes.filter((o) => o.estado === 'Pagada')
   const stockBajo = productos.filter((p) => p.stock > 0 && p.stock <= p.stockCritico).length
   const sinStock = productos.filter((p) => p.stock === 0).length
   const recientes = productos.slice(-5).reverse() // los últimos 5 cargados
@@ -17,6 +20,7 @@ export default function Dashboard({ productos }) {
         <div><h1>Dashboard</h1><p className="breadcrumb">Resumen general de la tienda</p></div>
       </div>
 
+      <Estado cargando={cargando} error={error} onReintentar={recargar}>
       <div className="stat-grid">
         <div className="stat-card"><p className="stat-label">Productos activos</p><p className="stat-value">{productos.length}</p></div>
         <div className="stat-card"><p className="stat-label">Usuarios registrados</p><p className="stat-value accent-blue">{usuarios.length}</p></div>
@@ -47,6 +51,7 @@ export default function Dashboard({ productos }) {
           </table>
         </div>
       </div>
+      </Estado>
     </>
   )
 }

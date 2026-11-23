@@ -13,18 +13,17 @@ export default function AdminLayout({ sesion, onSalir }) {
       <aside className="admin-sidebar">
         <div className="admin-brand"><span className="brand-mark" aria-hidden="true"></span>Level-Up Admin</div>
         <ul className="admin-nav">
-          {}
-          <li><NavLink to="/admin" end>📊 Dashboard</NavLink></li>
+          {/* El Vendedor solo ve Órdenes y Productos; el resto del menú es del Administrador. */}
+          {esAdmin && <li><NavLink to="/admin" end>📊 Dashboard</NavLink></li>}
           <li className="nav-section-label">Catálogo</li>
           <li><NavLink to="/admin/ordenes">🧾 Órdenes</NavLink></li>
           <li><NavLink to="/admin/productos" end>🎮 Productos</NavLink></li>
-          <li><NavLink to="/admin/productos/criticos">⚠️ Críticos</NavLink></li>
-          <li><NavLink to="/admin/categorias">🏷️ Categorías</NavLink></li>
-          <li><NavLink to="/admin/reportes">📈 Reportes</NavLink></li>
-          {}
+          {esAdmin && <li><NavLink to="/admin/productos/criticos">⚠️ Críticos</NavLink></li>}
+          {esAdmin && <li><NavLink to="/admin/categorias">🏷️ Categorías</NavLink></li>}
+          {esAdmin && <li><NavLink to="/admin/reportes">📈 Reportes</NavLink></li>}
           {esAdmin && <li className="nav-section-label">Personas</li>}
           {esAdmin && <li><NavLink to="/admin/usuarios">👤 Usuarios</NavLink></li>}
-          <li><NavLink to="/admin/perfil">🙍 Perfil</NavLink></li>
+          {esAdmin && <li><NavLink to="/admin/perfil">🙍 Perfil</NavLink></li>}
         </ul>
         <div className="admin-sidebar-footer">
           <p><strong>{`${sesion.nombre} ${sesion.apellidos || ''}`.trim()}</strong></p>

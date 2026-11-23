@@ -1,4 +1,4 @@
-import { formatCLP, precioFinal, rutaImagen, tieneOferta } from '../utilidades/formato.js'
+import { formatCLP, precioFinal, rutaImagen, slug, tieneOferta } from '../utilidades/formato.js'
 
 describe('formato', () => {
   it('formatCLP entrega pesos chilenos sin decimales', () => {
@@ -24,5 +24,9 @@ describe('formato', () => {
     expect(tieneOferta({ descuento: 15 })).toBeTrue()
     expect(tieneOferta({ descuento: 0 })).toBeFalse()
     expect(tieneOferta({})).toBeFalse()
+  })
+
+  it('slug normaliza tildes, espacios y símbolos', () => {
+    expect(slug('  Cámaras & Webcams ')).toBe('camaras-webcams')
   })
 })

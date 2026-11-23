@@ -1,13 +1,16 @@
 import { Link, useParams } from 'react-router'
 import { useState } from 'react'
 import ResumenOrden from '../componentes/ResumenOrden.jsx'
-import { ordenesDB } from '../datos/baseDatos.js'
+import Estado from '../componentes/Estado.jsx'
+import useRecurso from '../hooks/useRecurso.js'
+import { obtenerOrden } from '../servicios/ordenes.js'
 
 export default function CompraExitosa() {
   const { id } = useParams()
-  const orden = ordenesDB.obtener(id)
+  const { datos: orden, cargando, error, recargar } = useRecurso(() => obtenerOrden(id), [id])
   const [aviso, setAviso] = useState('')
 
+  if (cargando || error) return <div className="container pagina"><Estado cargando={cargando} error={error} onReintentar={recargar} /></div>
   if (!orden) return <div className="container pagina"><p className="mensaje-vacio">No existe la orden «{id}».</p><Link to="/catalogo" className="btn btn-primary">Ir al catálogo</Link></div>
 
   return (

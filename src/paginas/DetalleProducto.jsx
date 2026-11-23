@@ -3,13 +3,16 @@ import { Link, useNavigate, useParams } from 'react-router'
 import GrillaProductos from '../componentes/GrillaProductos.jsx'
 import { formatCLP, precioFinal, rutaImagen, tieneOferta } from '../utilidades/formato.js'
 
-export default function DetalleProducto({ productos, onAgregar }) {
+export default function DetalleProducto({ productos, onAgregar, cargando = false }) {
   const { id } = useParams() 
   const navegar = useNavigate()
   const [cantidad, setCantidad] = useState(1)
   const [agregado, setAgregado] = useState(false)
 
   const producto = productos.find((p) => p.codigo === id.toUpperCase())
+
+  // Mientras el catálogo viene de la API no se afirma que el producto «no existe».
+  if (!producto && cargando) return <div className="container pagina"><p className="empty-state" role="status">Cargando…</p></div>
 
   if (!producto) {
     return (

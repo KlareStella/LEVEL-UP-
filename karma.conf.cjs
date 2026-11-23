@@ -31,7 +31,10 @@ module.exports = function (config) {
         }],
       },
       plugins: [
-        new webpack.DefinePlugin({ 'import.meta.env.BASE_URL': JSON.stringify('/') }),
+        new webpack.DefinePlugin({
+          'import.meta.env.BASE_URL': JSON.stringify('/'),
+          'import.meta.env.VITE_API_URL': JSON.stringify('http://localhost:8080/api/v1'),
+        }),
       ],
     },
 

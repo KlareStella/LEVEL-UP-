@@ -1,9 +1,8 @@
 import { useSearchParams } from 'react-router'
 import GrillaProductos from '../componentes/GrillaProductos.jsx'
-import { categoriasDB } from '../datos/baseDatos.js'
 import { precioFinal } from '../utilidades/formato.js'
 
-export default function Catalogo({ productos, onAgregar }) {
+export default function Catalogo({ productos, listaCategorias = [], onAgregar }) {
   const [parametros, setParametros] = useSearchParams()
   const buscar = parametros.get('buscar') ?? ''
   const orden = parametros.get('orden') ?? 'relevancia'
@@ -48,7 +47,7 @@ export default function Catalogo({ productos, onAgregar }) {
         <aside className="filters">
           <h3>Categorías</h3>
           <div className="filter-group">
-            {categoriasDB.listar().map((c) => (
+            {listaCategorias.map((c) => (
               <label key={c.value}>
                 <input type="checkbox" checked={categorias.includes(c.value)} onChange={() => alternarCategoria(c.value)} /> {c.label}
               </label>
