@@ -1,14 +1,21 @@
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+import Estado from '../../componentes/Estado.jsx'
+import useRecurso from '../../hooks/useRecurso.js'
 import Campo from '../../componentes/Campo.jsx'
 import useFormulario from '../../hooks/useFormulario.js'
 import { REGIONES_COMUNAS } from '../../datos/data.js'
-import { guardarUsuarios, leerUsuarios } from '../../utilidades/almacen.js'
+import { actualizarUsuario, crearUsuario, listarUsuarios } from '../../servicios/usuarios.js'
+import { mensajeError } from '../../servicios/api.js'
 import { correoValido, maximo, minimo, requerido, runValido } from '../../utilidades/validaciones.js'
 
 // PÁGINA ADMIN: /admin/usuarios/nuevo  y  /admin/usuarios/:run/editar
 export default function UsuarioForm() {
   const { run } = useParams()
-  const usuarios = leerUsuarios()
+  // Se carga la lista desde la API para validar RUN y correo repetidos y para precargar la edición.
+  const { datos, cargando, error, recargar } = useRecurso(listarUsuarios)
+  if (cargando || error) return <div className="panel"><Estado cargando={cargando} error={error} onReintentar={recargar} /></div>
+  const usuarios = datos ?? []
   const existente = run ? usuarios.find((u) => u.run === run) : null
 
   if (run && !existente) {
@@ -26,6 +33,8 @@ export default function UsuarioForm() {
 
 function FormularioUsuario({ existente, usuarios }) {
   const navegar = useNavigate()
+  const [errorApi, setErrorApi] = useState('')
+  const [guardando, setGuardando] = useState(false)
   const esEdicion = Boolean(existente)
 
   const inicial = existente
@@ -52,25 +61,30 @@ function FormularioUsuario({ existente, usuarios }) {
   const v = f.valores
   const comunas = REGIONES_COMUNAS[v.region] ?? []
 
-  function guardar(e) {
+  async function guardar(e) {
     e.preventDefault()
-    if (!f.validarTodo()) return
+    if (!f.validarTodo() || guardando) return
     const datos = {
       run: esEdicion ? existente.run : v.run.trim().toUpperCase(),
       nombre: v.nombre.trim(),
       apellidos: v.apellidos.trim(),
       correo: v.correo.trim(),
-      password: existente ? existente.password : 'levelup2026', // contraseña inicial de los usuarios nuevos
       fechaNacimiento: v.fechaNacimiento,
       tipoUsuario: v.tipoUsuario,
       region: v.region,
       comuna: v.comuna,
       direccion: v.direccion.trim(),
     }
-    guardarUsuarios(esEdicion
-      ? usuarios.map((u) => (u.run === existente.run ? { ...u, ...datos } : u))
-      : [...usuarios, datos])
-    navegar('/admin/usuarios')
+    setGuardando(true); setErrorApi('')
+    try {
+      // Al editar no se envía la contraseña; los usuarios nuevos parten con una contraseña inicial.
+      if (esEdicion) await actualizarUsuario(existente.run, datos)
+      else await crearUsuario({ ...datos, password: 'levelup2026' })
+      navegar('/admin/usuarios')
+    } catch (err) {
+      setErrorApi(err.response?.status === 409 ? 'Ya existe un usuario con ese RUN o correo.' : mensajeError(err, 'No se pudo guardar el usuario.'))
+      setGuardando(false)
+    }
   }
 
   const campo = (name, tipo = 'text', extra = {}) => (
@@ -87,6 +101,7 @@ function FormularioUsuario({ existente, usuarios }) {
       </div>
 
       <form className="panel" onSubmit={guardar} noValidate style={{ maxWidth: 640 }}>
+        {errorApi && <div className="form-alert is-visible is-error" role="alert">{errorApi}</div>}
         <div className="field-row">
           <Campo id="run" etiqueta="RUN (sin puntos ni guion)" error={f.errores.run} pista="Entre 7 y 9 caracteres.">
             {campo('run', 'text', { placeholder: '123456785', autoComplete: 'off', disabled: esEdicion })}
@@ -131,7 +146,7 @@ function FormularioUsuario({ existente, usuarios }) {
         <Campo id="direccion" etiqueta="Dirección" error={f.errores.direccion}>{campo('direccion', 'text', { autoComplete: 'street-address' })}</Campo>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-          <button type="submit" className="btn btn-primary">Guardar usuario</button>
+          <button type="submit" className="btn btn-primary" disabled={guardando}>Guardar usuario</button>
           <Link to="/admin/usuarios" className="btn btn-outline">Cancelar</Link>
         </div>
       </form>

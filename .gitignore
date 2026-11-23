@@ -9,3 +9,5 @@ cobertura/
 backend-entrega/target/
 .idea/
 *.iml
+.env
+.env.local

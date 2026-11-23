@@ -1,15 +1,17 @@
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import Campo from '../../componentes/Campo.jsx'
 import useFormulario from '../../hooks/useFormulario.js'
-import { categoriasDB } from '../../datos/baseDatos.js'
+import { actualizarProducto, crearProducto } from '../../servicios/productos.js'
+import { mensajeError } from '../../servicios/api.js'
+import { IMAGEN_POR_DEFECTO } from '../../servicios/adaptadores.js'
 import { decimalPositivo, enteroPositivo, maximo, minimo, requerido } from '../../utilidades/validaciones.js'
 
-const IMAGEN_POR_DEFECTO = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&q=80'
 
 // PÁGINA ADMIN: /admin/productos/nuevo  y  /admin/productos/:codigo/editar
 // Esta página solo busca el producto; el formulario va en un componente aparte con `key`
 // para que, al cambiar de producto, el formulario se reinicie con los datos nuevos.
-export default function ProductoForm({ productos, setProductos }) {
+export default function ProductoForm({ productos, categorias = [], onCambio }) {
   const { codigo } = useParams()
   const existente = codigo ? productos.find((p) => p.codigo === codigo) : null
 
@@ -23,11 +25,13 @@ export default function ProductoForm({ productos, setProductos }) {
       </div>
     )
   }
-  return <FormularioProducto key={codigo ?? 'nuevo'} existente={existente} productos={productos} setProductos={setProductos} />
+  return <FormularioProducto key={codigo ?? 'nuevo'} existente={existente} productos={productos} categorias={categorias} onCambio={onCambio} />
 }
 
-function FormularioProducto({ existente, productos, setProductos }) {
+function FormularioProducto({ existente, productos, categorias, onCambio }) {
   const navegar = useNavigate()
+  const [errorApi, setErrorApi] = useState('')
+  const [guardando, setGuardando] = useState(false)
   const esEdicion = Boolean(existente)
 
   const inicial = existente
@@ -51,10 +55,10 @@ function FormularioProducto({ existente, productos, setProductos }) {
   const f = useFormulario(inicial, reglas)
   const v = f.valores
 
-  function guardar(e) {
+  async function guardar(e) {
     e.preventDefault()
-    if (!f.validarTodo()) return
-    const categoria = categoriasDB.listar().find((c) => c.value === v.categoria)
+    if (!f.validarTodo() || guardando) return
+    const categoria = categorias.find((c) => c.value === v.categoria)
     const datos = {
       codigo: esEdicion ? existente.codigo : v.codigo.trim().toUpperCase(),
       nombre: v.nombre.trim(),
@@ -67,10 +71,16 @@ function FormularioProducto({ existente, productos, setProductos }) {
       categoriaLabel: categoria.label,
       imagen: v.imagen.trim() || IMAGEN_POR_DEFECTO,
     }
-    setProductos((lista) => esEdicion
-      ? lista.map((p) => (p.codigo === existente.codigo ? { ...p, ...datos } : p))
-      : [...lista, datos])
-    navegar('/admin/productos')
+    setGuardando(true); setErrorApi('')
+    try {
+      if (esEdicion) await actualizarProducto(existente.codigo, datos)
+      else await crearProducto(datos)
+      await onCambio?.()
+      navegar('/admin/productos')
+    } catch (err) {
+      setErrorApi(err.response?.status === 409 ? 'Ya existe un producto con ese código.' : mensajeError(err, 'No se pudo guardar el producto.'))
+      setGuardando(false)
+    }
   }
 
   const campo = (name, extra = {}) => (
@@ -87,6 +97,7 @@ function FormularioProducto({ existente, productos, setProductos }) {
       </div>
 
       <form className="panel" onSubmit={guardar} noValidate style={{ maxWidth: 640 }}>
+        {errorApi && <div className="form-alert is-visible is-error" role="alert">{errorApi}</div>}
         <div className="field-row">
           <Campo id="codigo" etiqueta="Código de producto" error={f.errores.codigo} pista="Mínimo 3 caracteres. No editable una vez creado.">
             {campo('codigo', { placeholder: 'JM003', disabled: esEdicion })}
@@ -94,7 +105,7 @@ function FormularioProducto({ existente, productos, setProductos }) {
           <Campo id="categoria" etiqueta="Categoría" error={f.errores.categoria}>
             <select id="categoria" name="categoria" value={v.categoria} onChange={f.cambiar} onBlur={f.salir}>
               <option value="">-- Seleccione --</option>
-              {categoriasDB.listar().map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {categorias.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </Campo>
         </div>
@@ -121,7 +132,7 @@ function FormularioProducto({ existente, productos, setProductos }) {
         <Campo id="imagen" etiqueta="URL de imagen (opcional)" pista="Ej: https://... o pictures/ps5.png">{campo('imagen', { placeholder: 'https://...' })}</Campo>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-          <button type="submit" className="btn btn-primary">Guardar producto</button>
+          <button type="submit" className="btn btn-primary" disabled={guardando}>Guardar producto</button>
           <Link to="/admin/productos" className="btn btn-outline">Cancelar</Link>
         </div>
       </form>

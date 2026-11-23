@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router'
 import Campo from '../componentes/Campo.jsx'
 import useFormulario from '../hooks/useFormulario.js'
 import { REGIONES_COMUNAS } from '../datos/data.js'
-import { guardarUsuarios, leerUsuarios } from '../utilidades/almacen.js'
+import { registrarUsuario } from '../servicios/auth.js'
+import { mensajeError } from '../servicios/api.js'
 import { correoValido, maximo, minimo, requerido, runValido } from '../utilidades/validaciones.js'
 
 const inicial = { run: '', nombre: '', apellidos: '', correo: '', password: '', confirmPassword: '', fechaNacimiento: '', region: '', comuna: '', direccion: '' }
@@ -13,7 +14,7 @@ const reglas = {
   nombre: (v) => !requerido(v) ? 'El nombre es obligatorio.' : !maximo(v, 50) ? 'Máximo 50 caracteres.' : null,
   apellidos: (v) => !requerido(v) ? 'Los apellidos son obligatorios.' : !maximo(v, 100) ? 'Máximo 100 caracteres.' : null,
   correo: (v) => !requerido(v) ? 'El correo es obligatorio.' : !maximo(v, 100) ? 'Máximo 100 caracteres.' : !correoValido(v) ? 'Usa un correo @duoc.cl, @profesor.duoc.cl o @gmail.com.' : null,
-  password: (v) => !requerido(v) ? 'La contraseña es obligatoria.' : !minimo(v, 4) || !maximo(v, 10) ? 'Debe tener entre 4 y 10 caracteres.' : null,
+  password: (v) => !requerido(v) ? 'La contraseña es obligatoria.' : !minimo(v, 8) || !maximo(v, 64) ? 'Debe tener entre 8 y 64 caracteres.' : null,
   confirmPassword: (v, todos) => !requerido(v) ? 'Confirma tu contraseña.' : v !== todos.password ? 'Las contraseñas no coinciden.' : null,
   region: (v) => requerido(v) ? null : 'Selecciona una región.',
   comuna: (v) => requerido(v) ? null : 'Selecciona una comuna.',
@@ -23,6 +24,7 @@ const reglas = {
 export default function Registro({ onLogin }) {
   const f = useFormulario(inicial, reglas)
   const [aviso, setAviso] = useState(null)
+  const [enviando, setEnviando] = useState(false)
   const navegar = useNavigate()
   const comunas = REGIONES_COMUNAS[f.valores.region] ?? []
 
@@ -30,22 +32,29 @@ export default function Registro({ onLogin }) {
     f.setValores((v) => ({ ...v, region: e.target.value, comuna: '' }))
   }
 
-  function enviar(e) {
+  async function enviar(e) {
     e.preventDefault()
     if (!f.validarTodo()) return setAviso({ error: true, texto: 'Revisa los campos marcados en rojo antes de continuar.' })
 
-    const usuarios = leerUsuarios()
-    const correo = f.valores.correo.trim()
-    const run = f.valores.run.trim().toUpperCase()
-    if (usuarios.some((u) => u.correo.toLowerCase() === correo.toLowerCase())) return setAviso({ error: true, texto: 'Ya existe una cuenta registrada con ese correo.' })
-    if (usuarios.some((u) => u.run === run)) return setAviso({ error: true, texto: 'Ya existe una cuenta registrada con ese RUN.' })
-
     const { confirmPassword, ...datos } = f.valores
-    const nuevo = { ...datos, run, correo, nombre: datos.nombre.trim(), apellidos: datos.apellidos.trim(), direccion: datos.direccion.trim(), tipoUsuario: 'Cliente' }
-    guardarUsuarios([...usuarios, nuevo])
-    onLogin(nuevo)
-    setAviso({ error: false, texto: '¡Cuenta creada con éxito! Redirigiendo...' })
-    setTimeout(() => navegar('/', { replace: true }), 1000)
+    const nuevo = {
+      ...datos, run: datos.run.trim().toUpperCase(), correo: datos.correo.trim(),
+      nombre: datos.nombre.trim(), apellidos: datos.apellidos.trim(), direccion: datos.direccion.trim(), tipoUsuario: 'Cliente',
+    }
+    setEnviando(true)
+    try {
+      // La API valida RUN/correo repetidos, guarda la contraseña de forma segura y devuelve el token.
+      const { token, refreshToken, usuario } = await registrarUsuario(nuevo)
+      onLogin(usuario, token, refreshToken)
+      setAviso({ error: false, texto: '¡Cuenta creada con éxito! Redirigiendo...' })
+      setTimeout(() => navegar('/', { replace: true }), 1000)
+    } catch (err) {
+      const texto = err.response?.status === 409
+        ? 'Ya existe una cuenta registrada con ese correo o RUN.'
+        : mensajeError(err, 'No se pudo crear la cuenta.')
+      setAviso({ error: true, texto })
+      setEnviando(false)
+    }
   }
 
   const input = (name, tipo = 'text', extra = {}) => (
@@ -66,7 +75,7 @@ export default function Registro({ onLogin }) {
         </div>
         <Campo id="correo" etiqueta="Correo electrónico" error={f.errores.correo} pista="Solo correos @duoc.cl, @profesor.duoc.cl o @gmail.com">{input('correo', 'email', { autoComplete: 'email', placeholder: 'tunombre@duoc.cl' })}</Campo>
         <div className="field-row">
-          <Campo id="password" etiqueta="Contraseña" error={f.errores.password} pista="Entre 4 y 10 caracteres">{input('password', 'password', { autoComplete: 'new-password' })}</Campo>
+          <Campo id="password" etiqueta="Contraseña" error={f.errores.password} pista="Entre 8 y 64 caracteres">{input('password', 'password', { autoComplete: 'new-password' })}</Campo>
           <Campo id="confirmPassword" etiqueta="Confirmar contraseña" error={f.errores.confirmPassword}>{input('confirmPassword', 'password', { autoComplete: 'new-password' })}</Campo>
         </div>
         <Campo id="fechaNacimiento" etiqueta="Fecha de nacimiento (opcional)">{input('fechaNacimiento', 'date')}</Campo>
@@ -86,7 +95,7 @@ export default function Registro({ onLogin }) {
         </div>
         <Campo id="direccion" etiqueta="Dirección" error={f.errores.direccion}>{input('direccion', 'text', { autoComplete: 'street-address' })}</Campo>
 
-        <button type="submit" className="btn btn-primary btn-block">Registrarme</button>
+        <button type="submit" className="btn btn-primary btn-block" disabled={enviando}>Registrarme</button>
         <p className="form-footer-link">¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link></p>
       </form>
     </div>
