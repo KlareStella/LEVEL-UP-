@@ -1,4 +1,6 @@
-import { ordenesDB } from '../../datos/baseDatos.js'
+import Estado from '../../componentes/Estado.jsx'
+import useRecurso from '../../hooks/useRecurso.js'
+import { listarOrdenes } from '../../servicios/ordenes.js'
 import { formatCLP } from '../../utilidades/formato.js'
 
 // Lógica pura (fácil de probar): resumen de ventas a partir de las órdenes pagadas.
@@ -20,10 +22,12 @@ export function resumenVentas(ordenes) {
 
 // PÁGINA ADMIN: /admin/reportes
 export default function Reportes() {
-  const r = resumenVentas(ordenesDB.listar())
+  const { datos, cargando, error, recargar } = useRecurso(listarOrdenes)
+  const r = resumenVentas(datos ?? [])
   return (
     <>
       <div className="admin-topbar"><div><h1>Reportes</h1><p className="breadcrumb">Ventas de la tienda</p></div></div>
+      <Estado cargando={cargando} error={error} onReintentar={recargar}>
       <div className="stat-grid">
         <div className="stat-card"><p className="stat-label">Órdenes pagadas</p><p className="stat-value">{r.ordenes}</p></div>
         <div className="stat-card"><p className="stat-label">Ventas totales</p><p className="stat-value accent-green">{formatCLP(r.total)}</p></div>
@@ -42,6 +46,7 @@ export default function Reportes() {
           </table>
         </div>
       </div>
+      </Estado>
     </>
   )
 }

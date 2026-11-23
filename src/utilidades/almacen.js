@@ -1,5 +1,5 @@
-import { PRODUCTS, SEED_USERS } from '../datos/data.js'
-
+// Almacenamiento local: SOLO el carrito, los tokens (acceso y renovación) y los datos de la sesión.
+// Productos, categorías, usuarios y órdenes viven en la API.
 const leer = (clave, defecto) => {
   try {
     const guardado = localStorage.getItem(clave)
@@ -11,20 +11,29 @@ const leer = (clave, defecto) => {
 
 export const leerCarrito = () => leer('lug_cart', [])
 export const guardarCarrito = (c) => localStorage.setItem('lug_cart', JSON.stringify(c))
-export const leerSesion = () => leer('lug_session', null)
-export const guardarSesion = (u) => {
-  const { password, ...segura } = u 
+
+export const leerToken = () => {
+  try { return localStorage.getItem('lug_token') } catch { return null }
+}
+export const leerRefresh = () => {
+  try { return localStorage.getItem('lug_refresh') } catch { return null }
+}
+// Guarda el token de acceso y, si llega, el de renovación (el backend emite ambos al iniciar sesión y al renovar).
+export const guardarTokens = (token, refresh) => {
+  if (token) localStorage.setItem('lug_token', token)
+  if (refresh) localStorage.setItem('lug_refresh', refresh)
+}
+// Devuelve la sesión SIN la contraseña. Si llegan tokens, también los guarda.
+export const guardarSesion = (usuario, token, refresh) => {
+  const { password, ...segura } = usuario
   localStorage.setItem('lug_session', JSON.stringify(segura))
+  guardarTokens(token, refresh)
   return segura
 }
-export const borrarSesion = () => localStorage.removeItem('lug_session')
-
-export function leerUsuarios() {
-  const usuarios = leer('lug_users', null)
-  if (usuarios) return usuarios
-  localStorage.setItem('lug_users', JSON.stringify(SEED_USERS)) 
-  return SEED_USERS.slice()
+// La sesión solo es válida si existen el token y los datos del usuario.
+export const leerSesion = () => (leerToken() ? leer('lug_session', null) : null)
+export const borrarSesion = () => {
+  localStorage.removeItem('lug_session')
+  localStorage.removeItem('lug_token')
+  localStorage.removeItem('lug_refresh')
 }
-export const guardarUsuarios = (u) => localStorage.setItem('lug_users', JSON.stringify(u))
-export const leerProductos = () => leer('lug_admin_products', PRODUCTS)
-export const guardarProductos = (p) => localStorage.setItem('lug_admin_products', JSON.stringify(p))

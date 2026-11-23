@@ -197,30 +197,3 @@ export const BLOG_POSTS = [
       "Elegir una silla gamer no debería depender solo del color o el logo en el respaldo. Antes de comprar, revisa tres cosas: el rango de altura del asiento (debe permitir que tus rodillas queden a 90°), el soporte lumbar (ajustable es mejor que fijo) y el material del tapiz (el cuero sintético transpira menos que la tela, así que si juegas en sesiones largas, la tela suele ser más cómoda). También vale la pena fijarse en el peso máximo soportado y en si los reposabrazos son 3D o 4D, porque eso cambia bastante la comodidad de los antebrazos durante partidas largas. Con esos cuatro puntos resueltos, el resto es cuestión de presupuesto y estética.",
   },
 ];
-
-export const SEED_USERS = [
-  {
-    run: "123456785",
-    nombre: "Admin",
-    apellidos: "Level-Up",
-    correo: "admin@duoc.cl",
-    password: "admin123",
-    fechaNacimiento: "1990-01-01",
-    tipoUsuario: "Administrador",
-    region: "Región Metropolitana de Santiago",
-    comuna: "Santiago",
-    direccion: "Av. Siempre Viva 123",
-  },
-  {
-    run: "987654325",
-    nombre: "Valentina",
-    apellidos: "Rojas Pardo",
-    correo: "vrojas@gmail.com",
-    password: "vendedor1",
-    fechaNacimiento: "1996-05-14",
-    tipoUsuario: "Vendedor",
-    region: "Región de Valparaíso",
-    comuna: "Viña del Mar",
-    direccion: "Calle Los Álamos 456",
-  },
-];

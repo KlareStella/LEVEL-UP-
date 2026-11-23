@@ -10,7 +10,9 @@ export default function ResumenOrden({ orden }) {
         <dd className="col-sm-9">{cliente.nombre} {cliente.apellidos} · {cliente.correo}</dd>
         <dt className="col-sm-3">Entrega</dt>
         <dd className="col-sm-9">
-          {direccion.calle}{direccion.departamento ? `, ${direccion.departamento}` : ''} — {direccion.comuna}, {direccion.region}
+          {direccion.calle
+            ? <>{direccion.calle}{direccion.departamento ? `, ${direccion.departamento}` : ''} — {direccion.comuna}, {direccion.region}</>
+            : 'No registrada'}
         </dd>
         {direccion.indicaciones && (<><dt className="col-sm-3">Indicaciones</dt><dd className="col-sm-9">{direccion.indicaciones}</dd></>)}
       </dl>

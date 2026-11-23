@@ -1,16 +1,25 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { guardarUsuarios, leerUsuarios } from '../../utilidades/almacen.js'
+import Estado from '../../componentes/Estado.jsx'
+import useRecurso from '../../hooks/useRecurso.js'
+import { eliminarUsuario, listarUsuarios } from '../../servicios/usuarios.js'
+import { mensajeError } from '../../servicios/api.js'
 
 // PÁGINA ADMIN: listado de usuarios (solo Administrador; la ruta está dentro de <SoloAdmin />).
 export default function UsuariosAdmin() {
-  const [usuarios, setUsuarios] = useState(leerUsuarios)
+  const { datos, cargando, error, recargar } = useRecurso(listarUsuarios)
+  const [errorEliminar, setErrorEliminar] = useState('')
+  const usuarios = datos ?? []
 
-  function eliminar(run) {
+  async function eliminar(run) {
     if (!confirm('¿Eliminar este usuario?')) return
-    const restantes = usuarios.filter((u) => u.run !== run)
-    guardarUsuarios(restantes)
-    setUsuarios(restantes)
+    try {
+      await eliminarUsuario(run)
+      setErrorEliminar('')
+      recargar()
+    } catch (err) {
+      setErrorEliminar(mensajeError(err, 'No se pudo eliminar el usuario.'))
+    }
   }
 
   return (
@@ -20,7 +29,9 @@ export default function UsuariosAdmin() {
         <Link to="/admin/usuarios/nuevo" className="btn btn-primary">+ Nuevo usuario</Link>
       </div>
 
+      {errorEliminar && <div className="form-alert is-visible is-error" role="alert">{errorEliminar}</div>}
       <div className="panel">
+        <Estado cargando={cargando} error={error} onReintentar={recargar}>
         <div className="table-responsive">
           <table className="data-table">
             <thead><tr><th>RUN</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acciones</th></tr></thead>
@@ -44,6 +55,7 @@ export default function UsuariosAdmin() {
             </tbody>
           </table>
         </div>
+        </Estado>
       </div>
     </>
   )

@@ -5,7 +5,8 @@ import Col from 'react-bootstrap/Col'
 import Campo from '../componentes/Campo.jsx'
 import useFormulario from '../hooks/useFormulario.js'
 import { REGIONES_COMUNAS } from '../datos/data.js'
-import { nuevoIdOrden, ordenesDB } from '../datos/baseDatos.js'
+import { crearOrden } from '../servicios/ordenes.js'
+import { mensajeError } from '../servicios/api.js'
 import { procesarPago as pasarelaReal } from '../servicios/pagos.js'
 import { formatCLP, precioFinal } from '../utilidades/formato.js'
 import { correoValido, maximo, requerido } from '../utilidades/validaciones.js'
@@ -24,6 +25,8 @@ export default function Checkout({ carrito, productos, sesion, onVaciar, procesa
   const navegar = useNavigate()
   const finalizado = useRef(false) 
   const [simularRechazo, setSimularRechazo] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+  const [errorOrden, setErrorOrden] = useState('')
   const f = useFormulario({
     nombre: sesion?.nombre ?? '', apellidos: sesion?.apellidos ?? '', correo: sesion?.correo ?? '',
     calle: sesion?.direccion ?? '', departamento: '', region: sesion?.region ?? '', comuna: sesion?.comuna ?? '', indicaciones: '',
@@ -34,27 +37,38 @@ export default function Checkout({ carrito, productos, sesion, onVaciar, procesa
   const { lineas, subtotal, descuento, total } = calcularTotales(carrito, productos, { correo: f.valores.correo }, false)
   const comunas = REGIONES_COMUNAS[f.valores.region] ?? []
 
-  function pagar(e) {
+  async function pagar(e) {
     e.preventDefault()
-    if (!f.validarTodo()) return
+    if (!f.validarTodo() || enviando) return
+    // La API registra la compra a nombre de un usuario: hace falta haber iniciado sesión.
+    if (!sesion?.id && !sesion?.run) return setErrorOrden('Inicia sesión para completar la compra.')
     const v = f.valores
     const orden = {
-      id: nuevoIdOrden(),
       fecha: new Date().toISOString(),
       run: sesion?.run ?? null,
+      usuarioId: sesion?.id ?? null,
       cliente: { nombre: v.nombre.trim(), apellidos: v.apellidos.trim(), correo: v.correo.trim() },
       direccion: { calle: v.calle.trim(), departamento: v.departamento.trim(), region: v.region, comuna: v.comuna, indicaciones: v.indicaciones.trim() },
-      lineas: lineas.map((l) => ({ codigo: l.codigo, nombre: l.producto.nombre, imagen: l.producto.imagen, precio: precioFinal(l.producto), cantidad: l.cantidad, categoria: l.producto.categoria })),
+      lineas: lineas.map((l) => ({ codigo: l.codigo, productoId: l.producto.id ?? Number(l.codigo), nombre: l.producto.nombre, imagen: l.producto.imagen, precio: precioFinal(l.producto), cantidad: l.cantidad, categoria: l.producto.categoria })),
       subtotal, descuento, total,
     }
-    const resultado = procesarPago({ total, simularRechazo })
-    ordenesDB.crear({ ...orden, estado: resultado.ok ? 'Pagada' : 'Rechazada', motivo: resultado.motivo ?? null })
-    if (resultado.ok) {
-      finalizado.current = true
-      onVaciar() 
-      navegar(`/compra-exitosa/${orden.id}`, { replace: true })
-    } else {
-      navegar(`/compra-error/${orden.id}`, { replace: true })
+    setEnviando(true); setErrorOrden('')
+    try {
+      const resultado = await procesarPago({ total, simularRechazo })
+      // La orden se crea en la API (con el resultado del pago); ella asigna el número de orden.
+      const creada = await crearOrden({ ...orden, estado: resultado.ok ? 'Pagada' : 'Rechazada', motivo: resultado.motivo ?? null })
+      if (resultado.ok) {
+        finalizado.current = true
+        onVaciar()
+        navegar(`/compra-exitosa/${creada.id}`, { replace: true })
+      } else {
+        navegar(`/compra-error/${creada.id}`, { replace: true })
+      }
+    } catch (err) {
+      setErrorOrden(err.response?.status === 403
+        ? 'Tu cuenta no tiene permiso para registrar compras en el servidor.'
+        : mensajeError(err, 'No se pudo registrar la orden. Inténtalo nuevamente.'))
+      setEnviando(false)
     }
   }
 
@@ -62,6 +76,7 @@ export default function Checkout({ carrito, productos, sesion, onVaciar, procesa
     <div className="container pagina">
       <div className="section-head"><div><h1>Checkout</h1><p>Completa tus datos y la dirección de entrega.</p></div></div>
       <form onSubmit={pagar} noValidate>
+        {errorOrden && <div className="form-alert is-visible is-error" role="alert">{errorOrden}</div>}
         <Row className="g-4">
           <Col lg={7}>
             <h2 className="h5">Información del cliente</h2>
@@ -106,7 +121,7 @@ export default function Checkout({ carrito, productos, sesion, onVaciar, procesa
               <label className="d-block my-3 small">
                 <input type="checkbox" checked={simularRechazo} onChange={(e) => setSimularRechazo(e.target.checked)} /> Demo: simular pago rechazado
               </label>
-              <button type="submit" className="btn btn-accent btn-block">Pagar ahora {formatCLP(total)}</button>
+              <button type="submit" className="btn btn-accent btn-block" disabled={enviando}>Pagar ahora {formatCLP(total)}</button>
               <p style={{ marginTop: 14 }}><Link to="/carrito">← Volver al carrito</Link></p>
             </aside>
           </Col>

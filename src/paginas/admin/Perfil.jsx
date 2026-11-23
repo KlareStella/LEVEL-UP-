@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Campo from '../../componentes/Campo.jsx'
-import { usuariosDB } from '../../datos/baseDatos.js'
-import { guardarSesion } from '../../utilidades/almacen.js'
+import { actualizarUsuario } from '../../servicios/usuarios.js'
+import { mensajeError } from '../../servicios/api.js'
 import { maximo, requerido } from '../../utilidades/validaciones.js'
 
 // PÁGINA ADMIN: /admin/perfil — el usuario con sesión edita su nombre, apellidos y dirección.
@@ -12,14 +12,18 @@ export default function Perfil({ sesion, onActualizar }) {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
 
-  function guardar(e) {
+  async function guardar(e) {
     e.preventDefault()
     if (!requerido(nombre) || !requerido(apellidos)) return setError('Nombre y apellidos son obligatorios.')
     if (!maximo(nombre, 50) || !maximo(apellidos, 100) || !maximo(direccion, 300)) return setError('Revisa el largo máximo de los campos.')
-    const cambios = { nombre: nombre.trim(), apellidos: apellidos.trim(), direccion: direccion.trim() }
-    usuariosDB.actualizar(sesion.run, cambios)
-    onActualizar({ ...sesion, ...cambios })
-    setError(''); setMensaje('Perfil actualizado.')
+    const cambios = { nombre: nombre.trim(), apellidos: apellidos.trim(), direccion: direccion.trim(), correo: sesion.correo }
+    try {
+      await actualizarUsuario(sesion.run, cambios)
+      onActualizar({ ...sesion, ...cambios })
+      setError(''); setMensaje('Perfil actualizado.')
+    } catch (err) {
+      setMensaje(''); setError(mensajeError(err, 'No se pudo actualizar el perfil.'))
+    }
   }
 
   return (

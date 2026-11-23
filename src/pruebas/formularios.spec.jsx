@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import Registro from '../paginas/Registro.jsx'
 import Contacto from '../paginas/Contacto.jsx'
@@ -9,26 +9,25 @@ import Perfil from '../paginas/admin/Perfil.jsx'
 import HistorialCompras from '../paginas/admin/HistorialCompras.jsx'
 import Dashboard from '../paginas/admin/Dashboard.jsx'
 import PiePagina from '../componentes/PiePagina.jsx'
-import { ordenesDB, usuariosDB } from '../datos/baseDatos.js'
-import { leerUsuarios } from '../utilidades/almacen.js'
-import { producto, renderizarEnRuta } from './ayudas.jsx'
+import api from '../servicios/api.js'
+import { exito, producto, rechazo, renderizarEnRuta } from './ayudas.jsx'
 
 const escribir = (etiqueta, valor) => fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } })
-beforeEach(() => localStorage.clear())
-afterAll(() => localStorage.clear())
 
-describe('Registro (validación de formulario)', () => {
+describe('Registro (validación de formulario + API)', () => {
   const datosValidos = () => {
     escribir('RUN (sin puntos ni guion)', '10000013K'); escribir('Nombre completo', 'Ana'); escribir('Apellidos', 'Soto Mena')
-    escribir('Correo electrónico', 'ana@duoc.cl'); escribir('Contraseña', 'clave1'); escribir('Confirmar contraseña', 'clave1')
+    escribir('Correo electrónico', 'ana@duoc.cl'); escribir('Contraseña', 'clave1234'); escribir('Confirmar contraseña', 'clave1234')
     escribir('Región', 'Región de Valparaíso'); escribir('Comuna', 'Quilpué'); escribir('Dirección', 'Calle Falsa 123')
   }
+  const registrar = () => fireEvent.click(screen.getByRole('button', { name: /Crear cuenta|Registrarme|Registrar/i }))
 
-  it('formulario vacío: muestra errores y no crea el usuario', () => {
+  it('formulario vacío: muestra errores y no llama a la API', () => {
+    spyOn(api, 'post')
     renderizarEnRuta(<Registro onLogin={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: /Crear cuenta|Registrarme|Registrar/i }))
+    registrar()
     expect(screen.getByText('El RUN es obligatorio.')).toBeTruthy()
-    expect(leerUsuarios().length).toBe(2) 
+    expect(api.post).not.toHaveBeenCalled()
   })
 
   it('las contraseñas distintas generan error', () => {
@@ -45,27 +44,34 @@ describe('Registro (validación de formulario)', () => {
     expect(screen.getByText(/El RUN no es válido/)).toBeTruthy()
   })
 
-  it('datos válidos: guarda el usuario, inicia sesión (mock) y avisa el éxito', () => {
-    jasmine.clock().install()
-    try {
-      const onLogin = jasmine.createSpy('onLogin')
-      renderizarEnRuta(<Registro onLogin={onLogin} />)
-      datosValidos()
-      fireEvent.click(screen.getByRole('button', { name: /Crear cuenta|Registrarme|Registrar/i }))
-      expect(screen.getByText(/Cuenta creada con éxito/)).toBeTruthy()
-      expect(onLogin).toHaveBeenCalled()
-      expect(leerUsuarios().some((u) => u.correo === 'ana@duoc.cl')).toBeTrue()
-      act(() => jasmine.clock().tick(1100))
-    } finally { jasmine.clock().uninstall() }
+  it('MOCK axios: datos válidos → POST /auth/register (nombre completo, correo, contrasena), inicia sesión con el token y redirige, inicia sesión con el token y redirige', async () => {
+    spyOn(api, 'post').and.callFake(exito({ accessToken: 'jwt-ana', refreshToken: 'ref-ana', usuario: { run: '10000013K', nombre: 'Ana', correo: 'ana@duoc.cl', tipoUsuario: 'Cliente' } }))
+    const onLogin = jasmine.createSpy('onLogin')
+    render(
+      <MemoryRouter initialEntries={['/registro']}>
+        <Routes><Route path="/registro" element={<Registro onLogin={onLogin} />} /><Route path="/" element={<p>INICIO</p>} /></Routes>
+      </MemoryRouter>)
+    datosValidos()
+    registrar()
+    expect(await screen.findByText(/Cuenta creada con éxito/)).toBeTruthy()
+    const [url, cuerpo] = api.post.calls.mostRecent().args
+    expect(url).toBe('/auth/register')
+    expect(cuerpo).toEqual(jasmine.objectContaining({ correo: 'ana@duoc.cl', contrasena: 'clave1234' }))
+    expect(cuerpo.password).toBeUndefined()
+    expect(cuerpo.confirmPassword).toBeUndefined()
+    expect(onLogin).toHaveBeenCalledWith(jasmine.objectContaining({ nombre: 'Ana' }), 'jwt-ana', 'ref-ana')
+    expect(await screen.findByText('INICIO', {}, { timeout: 3000 })).toBeTruthy()
   })
 
-  it('un correo ya registrado muestra un error y no duplica el usuario', () => {
-    renderizarEnRuta(<Registro onLogin={() => {}} />)
+  it('MOCK axios: un correo ya registrado (409) muestra un error y no inicia sesión', async () => {
+    spyOn(api, 'post').and.callFake(rechazo(409))
+    const onLogin = jasmine.createSpy('onLogin')
+    renderizarEnRuta(<Registro onLogin={onLogin} />)
     datosValidos()
     escribir('Correo electrónico', 'admin@duoc.cl')
-    fireEvent.click(screen.getByRole('button', { name: /Crear cuenta|Registrarme|Registrar/i }))
-    expect(screen.getByText('Ya existe una cuenta registrada con ese correo.')).toBeTruthy()
-    expect(leerUsuarios().length).toBe(2)
+    registrar()
+    expect(await screen.findByText('Ya existe una cuenta registrada con ese correo o RUN.')).toBeTruthy()
+    expect(onLogin).not.toHaveBeenCalled()
   })
 })
 
@@ -118,28 +124,50 @@ describe('DetalleBlog (id numérico en la URL)', () => {
 })
 
 describe('ProductoForm (admin)', () => {
-  const montar = (ruta, productos, setProductos) => render(
+  // En la API las categorías se identifican por id numérico (el frontend lo usa como texto).
+  const categorias = [{ value: '1', label: 'Mouse' }, { value: '2', label: 'Accesorios' }]
+  const montar = (ruta, productos, onCambio = () => {}) => render(
     <MemoryRouter initialEntries={[ruta]}>
       <Routes>
-        <Route path="/admin/productos/nuevo" element={<ProductoForm productos={productos} setProductos={setProductos} />} />
-        <Route path="/admin/productos/:codigo/editar" element={<ProductoForm productos={productos} setProductos={setProductos} />} />
+        <Route path="/admin/productos/nuevo" element={<ProductoForm productos={productos} categorias={categorias} onCambio={onCambio} />} />
+        <Route path="/admin/productos/:codigo/editar" element={<ProductoForm productos={productos} categorias={categorias} onCambio={onCambio} />} />
         <Route path="/admin/productos" element={<p>LISTADO</p>} />
       </Routes>
     </MemoryRouter>)
 
-  it('crea un producto nuevo con datos válidos (incluye el descuento de oferta)', () => {
-    const setProductos = jasmine.createSpy('setProductos')
-    montar('/admin/productos/nuevo', [], setProductos)
-    escribir('Código de producto', 'zz001'); escribir('Categoría', 'mouse'); escribir('Nombre del producto', 'Mouse X')
+  it('MOCK axios: crea un producto con datos válidos (POST /productos con la categoría por id) y recarga el catálogo', async () => {
+    spyOn(api, 'post').and.callFake(exito({}))
+    const onCambio = jasmine.createSpy('onCambio')
+    montar('/admin/productos/nuevo', [], onCambio)
+    escribir('Código de producto', 'zz001'); escribir('Categoría', '1'); escribir('Nombre del producto', 'Mouse X')
     escribir('Precio (CLP)', '15990'); escribir('Stock', '8'); escribir('Descuento de oferta % (opcional)', '10')
     fireEvent.click(screen.getByText('Guardar producto'))
-    const creado = setProductos.calls.mostRecent().args[0]([])[0]
-    expect(creado).toEqual(jasmine.objectContaining({ codigo: 'ZZ001', precio: 15990, stock: 8, descuento: 10, categoriaLabel: 'Mouse' }))
-    expect(screen.getByText('LISTADO')).toBeTruthy()
+    expect(await screen.findByText('LISTADO')).toBeTruthy()
+    expect(api.post).toHaveBeenCalledWith('/productos', { nombre: 'Mouse X', precio: 15990, stock: 8, categoria: { id: 1 } })
+    expect(onCambio).toHaveBeenCalledTimes(1)
+  })
+
+  it('MOCK axios: editar un producto usa PUT /productos/:codigo', async () => {
+    spyOn(api, 'put').and.callFake(exito({}))
+    montar('/admin/productos/T001/editar', [producto({ codigo: 'T001', categoria: '1', nombre: 'Viejo' })])
+    escribir('Nombre del producto', 'Nuevo nombre')
+    fireEvent.click(screen.getByText('Guardar producto'))
+    expect(await screen.findByText('LISTADO')).toBeTruthy()
+    expect(api.put).toHaveBeenCalledWith('/productos/T001', jasmine.objectContaining({ nombre: 'Nuevo nombre', categoria: { id: 1 } }))
+  })
+
+  it('si la API falla al guardar muestra el error y no navega', async () => {
+    spyOn(api, 'post').and.callFake(rechazo(500, { message: 'Base de datos caída' }))
+    montar('/admin/productos/nuevo', [])
+    escribir('Código de producto', 'zz001'); escribir('Categoría', '1'); escribir('Nombre del producto', 'Mouse X')
+    escribir('Precio (CLP)', '15990'); escribir('Stock', '8')
+    fireEvent.click(screen.getByText('Guardar producto'))
+    expect(await screen.findByText('Base de datos caída')).toBeTruthy()
+    expect(screen.queryByText('LISTADO')).toBeNull()
   })
 
   it('rechaza código repetido, precio no numérico y descuento mayor a 90', () => {
-    montar('/admin/productos/nuevo', [producto({ codigo: 'DUP01' })], () => {})
+    montar('/admin/productos/nuevo', [producto({ codigo: 'DUP01' })])
     escribir('Código de producto', 'dup01'); fireEvent.blur(screen.getByLabelText('Código de producto'))
     escribir('Precio (CLP)', 'abc'); fireEvent.blur(screen.getByLabelText('Precio (CLP)'))
     escribir('Descuento de oferta % (opcional)', '95'); fireEvent.blur(screen.getByLabelText('Descuento de oferta % (opcional)'))
@@ -149,42 +177,66 @@ describe('ProductoForm (admin)', () => {
   })
 
   it('editar un código inexistente muestra el aviso', () => {
-    montar('/admin/productos/NOPE/editar', [], () => {})
+    montar('/admin/productos/NOPE/editar', [])
     expect(screen.getByText(/No existe el producto/)).toBeTruthy()
   })
 })
 
 describe('Perfil, historial y dashboard', () => {
-  it('Perfil guarda los cambios en usuariosDB y notifica a la app (mock)', () => {
-    const admin = leerUsuarios()[0]
+  const admin = { run: '123456785', nombre: 'Admin', apellidos: 'Level-Up', correo: 'admin@duoc.cl', tipoUsuario: 'Administrador', direccion: 'Av. Uno 1' }
+
+  it('MOCK axios: Perfil guarda los cambios (PUT /usuarios/:run) y notifica a la app', async () => {
+    spyOn(api, 'put').and.callFake(exito({}))
     const onActualizar = jasmine.createSpy('onActualizar')
     renderizarEnRuta(<Perfil sesion={admin} onActualizar={onActualizar} />)
     escribir('Nombre', 'Administradora'); fireEvent.click(screen.getByText('Guardar perfil'))
-    expect(usuariosDB.obtener(admin.run).nombre).toBe('Administradora')
-    expect(onActualizar).toHaveBeenCalled()
-    expect(screen.getByText('Perfil actualizado.')).toBeTruthy()
+    expect(await screen.findByText('Perfil actualizado.')).toBeTruthy()
+    // La API guarda un solo campo `nombre` (nombre + apellidos) y exige el correo.
+    expect(api.put).toHaveBeenCalledWith('/usuarios/123456785', { nombre: 'Administradora Level-Up', correo: 'admin@duoc.cl' })
+    expect(onActualizar).toHaveBeenCalledWith(jasmine.objectContaining({ nombre: 'Administradora', run: '123456785' }))
+  })
+
+  it('Perfil muestra el error si la API rechaza el cambio y no notifica a la app', async () => {
+    spyOn(api, 'put').and.callFake(rechazo(500))
+    const onActualizar = jasmine.createSpy('onActualizar')
+    renderizarEnRuta(<Perfil sesion={admin} onActualizar={onActualizar} />)
+    fireEvent.click(screen.getByText('Guardar perfil'))
+    expect(await screen.findByText('No se pudo actualizar el perfil.')).toBeTruthy()
+    expect(onActualizar).not.toHaveBeenCalled()
   })
 
   it('Perfil exige nombre y apellidos', () => {
-    renderizarEnRuta(<Perfil sesion={leerUsuarios()[0]} onActualizar={() => {}} />)
+    spyOn(api, 'put')
+    renderizarEnRuta(<Perfil sesion={admin} onActualizar={() => {}} />)
     escribir('Nombre', '   '); fireEvent.click(screen.getByText('Guardar perfil'))
     expect(screen.getByText('Nombre y apellidos son obligatorios.')).toBeTruthy()
+    expect(api.put).not.toHaveBeenCalled()
   })
 
-  it('HistorialCompras muestra solo las órdenes del usuario (por RUN)', () => {
+  it('HistorialCompras muestra solo las órdenes del usuario (por RUN) que entrega la API', async () => {
     const base = { fecha: '2026-10-22T10:00:00Z', estado: 'Pagada', total: 5000, subtotal: 5000, descuento: 0, cliente: {}, direccion: {}, lineas: [] }
-    ordenesDB.crear({ ...base, id: 'ORD-A', run: '123456785' })
-    ordenesDB.crear({ ...base, id: 'ORD-B', run: '999999999' })
+    spyOn(api, 'get').and.callFake((url) => Promise.resolve({
+      data: url.startsWith('/usuarios/')
+        ? { run: '123456785', nombre: 'Admin', apellidos: 'Level-Up', tipoUsuario: 'Administrador' }
+        : [{ ...base, id: 'ORD-A', run: '123456785' }, { ...base, id: 'ORD-B', run: '999999999' }],
+    }))
     render(<MemoryRouter initialEntries={['/admin/usuarios/123456785/historial']}><Routes><Route path="/admin/usuarios/:run/historial" element={<HistorialCompras />} /></Routes></MemoryRouter>)
-    expect(screen.getByText('ORD-A')).toBeTruthy()
+    expect(await screen.findByText('ORD-A')).toBeTruthy()
     expect(screen.queryByText('ORD-B')).toBeNull()
+    expect(screen.getByText(/Admin Level-Up/)).toBeTruthy()
   })
 
-  it('Dashboard cuenta productos con stock bajo y sin stock', () => {
+  it('Dashboard cuenta productos con stock bajo y sin stock, y usuarios y órdenes de la API', async () => {
+    spyOn(api, 'get').and.callFake((url) => Promise.resolve({
+      data: url === '/usuarios' ? [{ run: '1' }, { run: '2' }, { run: '3' }, { run: '4' }] : [{ id: 'O1', estado: 'Pagada' }, { id: 'O2', estado: 'Rechazada' }],
+    }))
     const lista = [producto({ codigo: 'A', stock: 2, stockCritico: 5 }), producto({ codigo: 'B', stock: 0 }), producto({ codigo: 'C', stock: 50 })]
     const { container } = renderizarEnRuta(<Dashboard productos={lista} />)
+    await screen.findByText('Usuarios registrados')
     const valores = [...container.querySelectorAll('.stat-value')].map((n) => n.textContent)
-    expect(valores[0]).toBe('3')
+    expect(valores[0]).toBe('3')       // productos activos
+    expect(valores[1]).toBe('4')       // usuarios registrados (API)
+    expect(valores[3]).toBe('1')       // órdenes pagadas (API)
     expect(valores).toContain('1')
   })
 })
