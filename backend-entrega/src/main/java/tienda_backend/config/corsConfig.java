@@ -1,4 +1,3 @@
-
 package tienda_backend.config;
 
 import org.springframework.context.annotation.Bean;
@@ -17,11 +16,7 @@ public class corsConfig {
             public void addCorsMappings(CorsRegistry registry) {
 
                 registry.addMapping("/api/v1/**")
-                    .allowedOrigins(
-                        "http://localhost:3000",
-                        "http://localhost:5173",
-                        "http://localhost:4200"
-                    )
+                    .allowedOriginPatterns("http://localhost:*")
                     .allowedMethods(
                         "GET",
                         "POST",
